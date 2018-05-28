@@ -1,20 +1,35 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string>
-#include <errno.h>
-#include <netdb.h>
+#include "packet.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
-using namespace std;
-
-#define BUF_SIZE 1024 //bytes
-
-string filename = "";
 int sockfd = -1;
+
+void request(char* filename, struct sockaddr_in& serv_addr, int16_t seq_num) {
+    struct packet req_connection = {
+        timestamp(),
+        type_SYN,
+        0,
+        seq_num,
+        -1
+    };
+    printf("- Sending request for SYN.\n");
+    send_packet(sockfd, serv_addr, req_connection, false);
+    struct packet response;
+    socklen_t addr_len;
+    int recv_len = recvfrom(sockfd, &response, sizeof(response) , 0, (struct sockaddr *) &serv_addr, &addr_len);
+    int next_seq = seq_num + 1;
+    while(response.type != 6 || response.ack != next_seq) {
+        send_packet(sockfd, serv_addr, req_connection, false);
+    }
+    struct packet req_file = {
+        timestamp(),
+        type_REQ & type_ACK,
+        (int16_t) strlen(filename), 
+        (int16_t) next_seq,
+        (int16_t) (response.seq + 1)
+    };
+    strncpy((char*)req_file.data, filename, strlen(filename));
+    printf("- Sending request for \"%s\".\n", filename);
+    send_packet(sockfd, serv_addr, req_file, false);
+}
 
 int main(int argc, char *argv[])
 {
@@ -33,7 +48,7 @@ int main(int argc, char *argv[])
 
     hostname = argv[1];
     portno = atoi(argv[2]);
-    filename = argv[3];
+    char* filename = argv[3];
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);  // create socket
     if (sockfd < 0) {
@@ -52,26 +67,18 @@ int main(int argc, char *argv[])
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     memcpy((char*) &serv_addr.sin_addr, server->h_addr, server->h_length);
-    serv_len = sizeof(serv_addr);
 
-    char* message = new char[filename.length()+1];
-    strcpy(message, filename.c_str());
-
-    int send_len = sendto(sockfd, message, strlen(message), 0, (struct sockaddr *) &serv_addr, serv_len);
-    if (send_len < 0) {
-        fprintf(stderr,"FAIL to read from socket. ERROR: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    char buffer[BUF_SIZE];
+    int16_t seq_num = randint(0, MAX_SEQ_NUM/2); //x
+    request(filename, serv_addr, seq_num);
 
     while(1) {
-    	int recv_len = recvfrom(sockfd, buffer, BUF_SIZE, 0, (struct sockaddr *) &src_addr, &addr_len);
+        struct packet response;
+    	int recv_len = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &src_addr, &addr_len);
         if (recv_len < 0) {
             fprintf(stderr,"FAIL to read from socket. ERROR: %s\n", strerror(errno));
             exit(1);
         }
-        printf("%s\n", buffer);
+        printf("%s\n", (char*) response.data);
     }
 
     close(sockfd);
