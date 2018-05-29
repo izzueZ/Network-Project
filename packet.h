@@ -54,6 +54,7 @@ struct packet {
 
 void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& packet, bool retransmission) {
 	printf("Packet Content:\n");
+	printf("%d\n", packet.type);
 	if((packet.type & type_DATA) == type_DATA)
 		printf("DATA ");
 	if((packet.type & type_SYN) == type_SYN)
