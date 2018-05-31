@@ -23,6 +23,7 @@ using namespace std;
 #define HEADER_SIZE 16 //bytes
 #define MAX_SEQ_NUM 30720 //bytes
 #define PAYLOAD_SIZE (MAX_PACKET_SIZE - HEADER_SIZE)
+#define TIMEOUT 500
 
 #define type_DATA 1
 #define type_SYN 2
@@ -53,8 +54,7 @@ struct packet {
 };
 
 void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& packet, bool retransmission) {
-	printf("Packet Content:\n");
-	printf("%d\n", packet.type);
+	printf("Packet Content: ");
 	if((packet.type & type_DATA) == type_DATA)
 		printf("DATA ");
 	if((packet.type & type_SYN) == type_SYN)
@@ -65,7 +65,7 @@ void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& pack
 		printf("REQ ");
 	if((packet.type & type_FIN) == type_FIN)
 		printf("FIN ");
-	printf("\n");
+	printf("   seq = %d, ack = %d, len = %d.\n", packet.seq, packet.ack, packet.len);
 	//cout << packet.len << endl;
 	sendto(sockfd, &packet, sizeof(packet) , 0, (struct sockaddr*) &addr, addr_len);
 }
