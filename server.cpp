@@ -3,6 +3,10 @@
 int sockfd = -1;
 
 void process_request(struct sockaddr_in& cli_addr, const struct packet& request) {
+    int count = 0;
+    int16_t buf_len = 0;
+    int8_t data_buf[PAYLOAD_SIZE];
+    list<packet> window;
 	int16_t seq_num = randint(0, MAX_SEQ_NUM/2); //y
     int16_t ack_num = request.seq + request.len;
 	struct packet ack_packet = {
@@ -12,9 +16,11 @@ void process_request(struct sockaddr_in& cli_addr, const struct packet& request)
 	    (int16_t) seq_num,
 	    (int16_t) ack_num
     };
+    printf("this is server SYN&ACK to client as step 2 in line 15.\n");
     printf("- Sending ACK&SYN.\n");
     send_packet(sockfd, cli_addr, ack_packet, false);
-
+    window.push_back(ack_packet); //window related
+    
     struct packet file_request;
     while(recvfrom(sockfd, &file_request, sizeof(file_request), 0, (struct sockaddr *) &cli_addr, &addr_len) < 0) {
     	printf("- Waiting for ACK&REQ.\n");
@@ -22,6 +28,9 @@ void process_request(struct sockaddr_in& cli_addr, const struct packet& request)
     if(file_request.type != (type_ACK + type_REQ) || file_request.ack != seq_num + 1) {
     	printf("- ACK&REQ from client is wrong.\n");
     	return;
+    }
+    else{
+        printf("- Received SYN&REQ from client. Start sending DATA.\n");
     }
 
     seq_num += ack_packet.len;
@@ -31,29 +40,45 @@ void process_request(struct sockaddr_in& cli_addr, const struct packet& request)
 	    fprintf(stderr, "FAIL to open file\n");
 	    exit(1);
 	}
-	struct packet data_packet = {
-	    timestamp(),
-	    type_DATA,
-	    0,
-	    (int16_t) seq_num,
-	    (int16_t) ack_num
-    };
-    while((data_packet.len = read(f, data_packet.data, PAYLOAD_SIZE)) > 0) {
+    
+    /////////////////////////////////////////////////////////////////////////////////
+    /*
+     this is for hint # 2
+     which deals with large file transmission
+     by dividing file to many trunks each with unique header
+     */
+    while((buf_len = read(f, data_buf, PAYLOAD_SIZE)) > 0) {
         printf("- Sending DATA.\n");
+        struct packet data_packet = {
+            timestamp(),
+            type_DATA,
+            buf_len,
+            (int16_t) seq_num,
+            (int16_t) ack_num,
+        };
+        memcpy(data_packet.data, data_buf, PAYLOAD_SIZE);
 		send_packet(sockfd, cli_addr, data_packet, false);
         seq_num += data_packet.len;
+        if(seq_num > MAX_SEQ_NUM){
+            seq_num -= MAX_SEQ_NUM;
+        }
+
+        struct packet file_ack;
+        while(recvfrom(sockfd, &file_ack, sizeof(file_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) < 0) {
+            printf("- Waiting for ACK.\n");
+        }
+        
+        if(file_ack.type != type_ACK or file_ack.ack != seq_num) {
+            printf("- ACK is wrong.\n");
+            return;
+        }
+        else{
+            count++;
+            printf("received ACK for packet %d.\n", count);
+        }
     }
 
-    seq_num += data_packet.len;
-    struct packet file_ack;
-    while(recvfrom(sockfd, &file_ack, sizeof(file_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) < 0) {
-        printf("- Waiting for ACK.\n");
-    }
-    if(file_ack.type != type_ACK or file_ack.ack != seq_num) {
-        printf("- ACK is wrong.\n");
-        return;
-    }
-
+    /////////////////////////////////////////////////////////////////////////////////
     struct packet fin_packet = {
         timestamp(),
         type_FIN,
