@@ -33,7 +33,6 @@ void request(char* filename, struct sockaddr_in& serv_addr, int16_t initial_seq_
         printf("- Waiting for ACK from the server.\n");
     }
     if(response.type != (type_SYN + type_ACK) || response.ack != seq_num) {
-        //send_packet(sockfd, serv_addr, req_connection, false);
         printf("- Wrong SYN&ACK from the server.\n");
         return;
     }
@@ -50,7 +49,7 @@ void request(char* filename, struct sockaddr_in& serv_addr, int16_t initial_seq_
         (int16_t) ack_num
     };
     strncpy((char*)req_file.data, filename, strlen(filename));
-    printf("this is client SYN&REQ to server as step 3 in line 50.\n");
+    printf("this is client SYN&REQ to server as step 3 in line 52.\n");
     printf("- Sending request for \"%s\".\n", filename);
     send_packet(sockfd, serv_addr, req_file, false);
     seq_num += req_file.len;
@@ -103,12 +102,12 @@ int main(int argc, char *argv[])
         switch(response.type) {
             case type_DATA: {
                 if (response.seq == ack_num) {
-                    //printf("DATA: %s\n", (char*) response.data);
                     write(f, response.data, response.len);
                     ack_num += response.len;
                     if(ack_num > MAX_SEQ_NUM){
-                        ack_num -= MAX_SEQ_NUM;
+                        ack_num = 0;
                     }
+                    
                     acknowlege(serv_addr, false);
                 }
                 else {

@@ -33,6 +33,7 @@ using namespace std;
 #define type_REQ 8
 #define type_FIN 16
 
+int duplicate_num = 0;
 socklen_t addr_len = sizeof(struct sockaddr_in);
 
 int64_t timestamp() {
