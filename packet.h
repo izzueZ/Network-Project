@@ -4,6 +4,7 @@
 #include <string>
 #include <errno.h>
 #include <netdb.h>
+#include <cstring>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -32,6 +33,7 @@ using namespace std;
 #define type_ACK 4
 #define type_REQ 8
 #define type_FIN 16
+#define type_ERR 32
 
 int duplicate_num = 0;
 socklen_t addr_len = sizeof(struct sockaddr_in);
@@ -57,8 +59,16 @@ struct packet {
 };
 
 void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& packet, bool retransmission) {
-	printf("Packet Content: ");
-	if((packet.type & type_DATA) == type_DATA)
+	printf("Sending packet seq = %d, ack = %d, len = %d", packet.seq, packet.ack, packet.len);
+	if(retransmission)
+		printf(" Retransmission");
+	if((packet.type & type_SYN) == type_SYN)
+		printf(" SYN");
+	if((packet.type & type_FIN) == type_FIN)
+		printf(" FIN");
+	printf("\n");
+
+	/*if((packet.type & type_DATA) == type_DATA)
 		printf("DATA ");
 	if((packet.type & type_SYN) == type_SYN)
 		printf("SYN ");
@@ -69,6 +79,7 @@ void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& pack
 	if((packet.type & type_FIN) == type_FIN)
 		printf("FIN ");
 	printf("   seq = %d, ack = %d, len = %d.\n\n", packet.seq, packet.ack, packet.len);
+	*/
 	//cout << packet.len << endl;
 	sendto(sockfd, &packet, sizeof(packet) , 0, (struct sockaddr*) &addr, addr_len);
 }
