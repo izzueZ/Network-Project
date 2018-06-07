@@ -110,8 +110,8 @@ int main(int argc, char *argv[])
     
     int f = open("received.data", O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU);
     struct packet response;
-    //struct timeval tv = {0, TIMEOUT*1000};  // 500 ms, until SYN received
-    struct timeval tv = {(2*TIMEOUT)/1000, 0};
+    //struct timeval tv = {0, TIMEOUT*1000};
+    struct timeval tv = {(10*TIMEOUT)/1000, 0};
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
         fprintf(stderr, "ERROR: setsockopt() failed.\n");
 
@@ -122,6 +122,9 @@ int main(int argc, char *argv[])
                 if (response.ack == initial_seq_num + strlen(filename) && response.ack == seq_num) {
                     ack_num = (response.seq + response.len) % MAX_SEQ_NUM;
                     acknowlege(serv_addr, type_SYN, ack_num, false);
+                    /*struct timeval tv = {0, 0};
+                    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
+                        fprintf(stderr, "ERROR: setsockopt() failed.\n");*/
                     //seq_num++;
                 }
                 else 
@@ -158,7 +161,7 @@ int main(int argc, char *argv[])
                     ack_num += response.len;
                     seq_num++;
                     acknowlege(serv_addr, type_FIN, ack_num, false);
-                    struct timeval tv = {(2*TIMEOUT)/1000, 0}; // 1s
+                    struct timeval tv = {(10*TIMEOUT)/1000, 0}; // 3s
                     if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
                         fprintf(stderr, "ERROR: setsockopt() failed.\n");
                     }

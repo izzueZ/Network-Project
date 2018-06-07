@@ -24,7 +24,8 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
         }
         
         //printf("Receiving packet %d\n", client_ack.ack);
-        
+        if(window.empty())
+            return;
         list<packet>::iterator i = window.begin();
         while(i != window.end() && i->seq != client_ack.ack)
             i++;
@@ -240,6 +241,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             printf("file transfer complete.\n");
         }  
     }*/
+    //int count = 0;
     while(!window.empty()) {
         process_ack(sockfd, cli_addr, window, false);
         check_time(sockfd, cli_addr, window);
