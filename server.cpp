@@ -18,7 +18,7 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
     struct packet client_ack;
     while(recvfrom(sockfd, &client_ack, sizeof(client_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) > 0) {
         printf("Receiving packet %d\n", client_ack.ack);
-        if(client_ack.type != type_ACK && client_ack.type != (type_ACK + type_REQ) && client_ack.type != (type_ACK + type_ERR) && client_ack.type != (type_ACK + type_FIN)){
+        if(client_ack.type != type_ACK && client_ack.type != (type_ACK + type_SYN) && client_ack.type != (type_ACK + type_ERR) && client_ack.type != (type_ACK + type_FIN)){
             printf("----- Received packet, but is not expected one. Ignore it. -----\n");
             continue;
         }
@@ -132,7 +132,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         strncpy((char*)error_packet.data, msg, strlen(msg));
         send_packet(sockfd, cli_addr, error_packet, false);
         window.push_back(error_packet);
-        struct packet error_ack;
+        //struct packet error_ack;
         /*while(recvfrom(sockfd, &error_ack, sizeof(error_ack), 0, (struct sockaddr*)&cli_addr, &addr_len) < 0) {
             printf("- Waiting for ERR&ACK.\n");
             check_time(sockfd, cli_addr, window);
@@ -144,7 +144,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         else{
             printf("- Received ACK&ERR from client.\n");
         }*/
-        while(!window.empty()) {
+        /*while(!window.empty()) {
             if(recvfrom(sockfd, &error_ack, sizeof(error_ack), 0, (struct sockaddr*)&cli_addr, &addr_len) < 0) {
                 printf("- Waiting for ERR&ACK.\n");
                 check_time(sockfd, cli_addr, window);
@@ -157,21 +157,26 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
                 window.pop_back();
                 printf("- Received ACK&ERR from client.\n");
             }
+        }*/
+        while(!window.empty()) {
+            process_ack(sockfd, cli_addr, window, false);
+            check_time(sockfd, cli_addr, window);
         }
         seq_num += error_packet.len;
 	}
     else while(!window.empty() || !done_flag){
-        while(!done_flag && (window.empty() || (window.begin()->seq + CWND >= seq_num + MAX_PACKET_SIZE)) && window.size() < 5){
+        //while(!done_flag && (window.empty() || (window.begin()->seq + CWND >= seq_num + MAX_PACKET_SIZE)) && window.size() < 5){
+        while(!done_flag && window.size() < 5){
             struct packet data_packet = {
                 timestamp(),
                 type_DATA,
                 0,
                 (int16_t) seq_num,
-                -3 //???
+                -3
             };
             
             if((data_packet.len = read(f, data_packet.data, PAYLOAD_SIZE)) > 0){
-                printf("- Sending DATA.\n");
+                //printf("- Sending DATA.\n");
                 send_packet(sockfd, cli_addr, data_packet, false);
                 window.push_back(data_packet);
                 seq_num += data_packet.len;
@@ -184,12 +189,13 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             }
         }
         
-        if(done_flag){
+        /*if(done_flag){
             process_ack(sockfd, cli_addr, window, true);
         }
         else{
             process_ack(sockfd, cli_addr, window, false);
-        }
+        }*/
+        process_ack(sockfd, cli_addr, window, false);
         check_time(sockfd, cli_addr, window);
     }
     
@@ -199,14 +205,14 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         type_FIN,
         1,
         (int16_t) seq_num,
-        -2 //???
+        -4
     };
-    printf("- Sending FIN.\n");
+    //printf("- Sending FIN.\n");
     send_packet(sockfd, cli_addr, fin_packet, false);
     window.push_back(fin_packet);
 
-    seq_num += fin_packet.len;
-    struct packet fin_ack;
+    seq_num += fin_packet.len; //@
+    //struct packet fin_ack;
     /*while(recvfrom(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) < 0) {
         printf("- Waiting for FIN&ACK.\n");
         check_time(sockfd, cli_addr, window);
@@ -238,7 +244,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         process_ack(sockfd, cli_addr, window, false);
         check_time(sockfd, cli_addr, window);
     }
-    printf("file transfer complete.\n");
+    //printf("file transfer complete.\n");
 }
 
 int main(int argc, char *argv[])

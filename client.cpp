@@ -13,6 +13,7 @@ void acknowlege(struct sockaddr_in& serv_addr, int type, int ack, bool retransmi
         ack   
     };
     switch(type) {
+        case type_SYN: ack_response.type += type_SYN; break;
         case type_FIN: ack_response.type += type_FIN; break;
         case type_ERR: ack_response.type += type_ERR; break;
     }
@@ -20,17 +21,19 @@ void acknowlege(struct sockaddr_in& serv_addr, int type, int ack, bool retransmi
 }
 
 void request(char* filename, struct sockaddr_in& serv_addr, int16_t initial_seq_num) {
+    seq_num = initial_seq_num;
     struct packet req_connection = {
         timestamp(),
         type_SYN,
         (int16_t) strlen(filename),
-        initial_seq_num,
+        seq_num,
         -1
     };
     strncpy((char*)req_connection.data, filename, strlen(filename));
-    printf("this is client SYN to server as step 1 in line 26.\n");
-    printf("- Sending SYN to server: seq = %d.\n", initial_seq_num);
+    //printf("this is client SYN to server as step 1 in line 26.\n");
+    //printf("- Sending SYN to server: seq = %d.\n", initial_seq_num);
     send_packet(sockfd, serv_addr, req_connection, false);
+    seq_num += req_connection.len;
     /*struct timeval tv = {0, TIMEOUT*1000};  // 500 ms, until SYN received
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
         fprintf(stderr, "ERROR: setsockopt() failed.\n");
@@ -107,19 +110,26 @@ int main(int argc, char *argv[])
     
     int f = open("received.data", O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU);
     struct packet response;
-    struct timeval tv = {0, TIMEOUT*1000};  // 500 ms, until SYN received
+    //struct timeval tv = {0, TIMEOUT*1000};  // 500 ms, until SYN received
+    struct timeval tv = {(2*TIMEOUT)/1000, 0};
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
         fprintf(stderr, "ERROR: setsockopt() failed.\n");
 
     while(recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &src_addr, &addr_len) > 0) {
-        printf("- Received packet %d.\n", response.seq);
+        printf("Receiving packet seq = %d, ack = %d\n", response.seq, response.ack);
         switch(response.type) {
             case type_SYN + type_ACK: {
-                ack_num = response.seq + response.len;
-                acknowlege(serv_addr, type_SYN, ack_num, false);
+                if (response.ack == initial_seq_num + strlen(filename) && response.ack == seq_num) {
+                    ack_num = (response.seq + response.len) % MAX_SEQ_NUM;
+                    acknowlege(serv_addr, type_SYN, ack_num, false);
+                    //seq_num++;
+                }
+                else 
+                    acknowlege(serv_addr, type_SYN, ack_num, true);
             } break;
             case type_ERR: {
                 if (response.seq == ack_num) {
+                    seq_num++;
                     ack_num += response.len;
                     acknowlege(serv_addr, type_ERR, ack_num, false);
                     printf("- Message from server: %s.\n", response.data);
@@ -130,11 +140,11 @@ int main(int argc, char *argv[])
             case type_DATA: {
                 if (response.seq == ack_num) {
                     write(f, response.data, response.len);
+                    seq_num++;
                     ack_num += response.len;
                     if(ack_num > MAX_SEQ_NUM){
                         ack_num = ack_num % MAX_SEQ_NUM;
                     }
-                    
                     acknowlege(serv_addr, type_DATA, ack_num, false);
                 }
                 else {
@@ -143,9 +153,10 @@ int main(int argc, char *argv[])
                 }
             } break;
             case type_FIN: {
-                printf("- Received FIN. Sending FIN_ACK.\n");
+                //printf("- Received FIN. Sending FIN_ACK.\n");
                 if (response.seq == ack_num) {
                     ack_num += response.len;
+                    seq_num++;
                     acknowlege(serv_addr, type_FIN, ack_num, false);
                     struct timeval tv = {(2*TIMEOUT)/1000, 0}; // 1s
                     if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
@@ -156,11 +167,10 @@ int main(int argc, char *argv[])
                     acknowlege(serv_addr, type_FIN, ack_num, true);
                 }
             } break;
-        }
-        
+        }    
     }
     if (ack_num == MAX_SEQ_NUM + 1) {
-        printf("- Fail to request, start request again.\n");
+        printf("----- Fail to request, start request again. -----\n");
         goto retry;
     }
     close(f);
