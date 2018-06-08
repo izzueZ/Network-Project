@@ -17,7 +17,7 @@ void acknowlege(struct sockaddr_in& serv_addr, int type, int ack, bool retransmi
         case type_FIN: ack_response.type += type_FIN; break;
         case type_ERR: ack_response.type += type_ERR; break;
     }
-    send_packet(sockfd, serv_addr, ack_response, retransmission);
+    send_packet(sockfd, serv_addr, ack_response, retransmission, false);
 }
 
 void request(char* filename, struct sockaddr_in& serv_addr, int16_t initial_seq_num) {
@@ -32,7 +32,7 @@ void request(char* filename, struct sockaddr_in& serv_addr, int16_t initial_seq_
     strncpy((char*)req_connection.data, filename, strlen(filename));
     //printf("this is client SYN to server as step 1 in line 26.\n");
     //printf("- Sending SYN to server: seq = %d.\n", initial_seq_num);
-    send_packet(sockfd, serv_addr, req_connection, false);
+    send_packet(sockfd, serv_addr, req_connection, false, false);
     seq_num += req_connection.len;
     /*struct timeval tv = {0, TIMEOUT*1000};  // 500 ms, until SYN received
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "ERROR: setsockopt() failed.\n");
 
     while(recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &src_addr, &addr_len) > 0) {
-        printf("Receiving packet seq = %d, ack = %d\n", response.seq, response.ack);
+        printf("Receiving packet %d\n\n", response.ack);
         switch(response.type) {
             case type_SYN + type_ACK: {
                 if (response.ack == initial_seq_num + strlen(filename) && response.ack == seq_num) {
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
                     seq_num++;
                     ack_num += response.len;
                     acknowlege(serv_addr, type_ERR, ack_num, false);
-                    printf("- Message from server: %s.\n", response.data);
+                    printf("---- Message from server: %s. ----\n", response.data);
                 }
                 else
                     acknowlege(serv_addr, type_ERR, ack_num, true);
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
                     acknowlege(serv_addr, type_DATA, ack_num, false);
                 }
                 else {
-                    printf("- Unexpected data packet seq = %d. Wait for packet %d.\n", response.seq, ack_num);
+                    printf("---- Unexpected data packet seq = %d. Wait for packet %d. ----\n", response.seq, ack_num);
                     acknowlege(serv_addr, type_DATA, ack_num, true);
                 }
             } break;

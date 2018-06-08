@@ -58,15 +58,22 @@ struct packet {
 	int8_t data[PAYLOAD_SIZE];
 };
 
-void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& packet, bool retransmission) {
-	printf("Sending packet seq = %d, ack = %d, len = %d", packet.seq, packet.ack, packet.len);
+void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& packet, bool retransmission, bool is_server) {
+	//printf("Sending packet seq = %d, ack = %d, len = %d", packet.seq, packet.ack, packet.len);
+    if(is_server){
+        printf("Sending packet %d 5120", packet.seq);
+    }
+    else{
+        printf("Sending packet %d", packet.seq);
+    }
+    
 	if(retransmission)
 		printf(" Retransmission");
 	if((packet.type & type_SYN) == type_SYN)
 		printf(" SYN");
 	if((packet.type & type_FIN) == type_FIN)
 		printf(" FIN");
-	printf("\n");
+	printf("\n\n");
 
 	/*if((packet.type & type_DATA) == type_DATA)
 		printf("DATA ");

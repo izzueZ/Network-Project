@@ -7,7 +7,7 @@ void check_time(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window){
         if(timestamp() > i->timestamp + TIMEOUT) {
             //printf("- Timeout!\n");
             i->timestamp = timestamp();
-            send_packet(sockfd, cli_addr, *i, true);
+            send_packet(sockfd, cli_addr, *i, true, true);
         }
     }
 }
@@ -17,9 +17,9 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
     
     struct packet client_ack;
     while(recvfrom(sockfd, &client_ack, sizeof(client_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) > 0) {
-        printf("Receiving packet %d\n", client_ack.ack);
+        printf("Receiving packet %d\n\n", client_ack.ack);
         if(client_ack.type != type_ACK && client_ack.type != (type_ACK + type_SYN) && client_ack.type != (type_ACK + type_ERR) && client_ack.type != (type_ACK + type_FIN)){
-            printf("----- Received packet, but is not expected one. Ignore it. -----\n");
+            printf("----- Received packet, but it's not expected one. Ignore it. -----\n");
             continue;
         }
         
@@ -38,7 +38,7 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
                 window.clear();
             }
             else {
-                printf("----- Unknown situation -----\n");
+                printf("----- Unknown situation. -----\n");
             }
         }
         /*if(client_ack.ack == 0){
@@ -83,7 +83,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
     bool done_flag = false;
 	int16_t seq_num = randint(0, MAX_SEQ_NUM/2); //y
     int16_t ack_num = request.seq + request.len;
-    printf("Receiving packet %d\n", request.ack); //should be "Receiving packet -1"
+    printf("Receiving packet %d\n\n", request.ack); //should be "Receiving packet -1"
 	struct packet syn_ack = {
 	   	timestamp(),
 	    type_ACK + type_SYN,
@@ -92,7 +92,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
 	    (int16_t) ack_num
     };
     //printf("this is server SYN&ACK to client as step 2 in line 70.\n");
-    send_packet(sockfd, cli_addr, syn_ack, false);
+    send_packet(sockfd, cli_addr, syn_ack, false, true);
     window.push_back(syn_ack);
     
     //struct packet file_request;
@@ -131,7 +131,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             -2
         };
         strncpy((char*)error_packet.data, msg, strlen(msg));
-        send_packet(sockfd, cli_addr, error_packet, false);
+        send_packet(sockfd, cli_addr, error_packet, false, true);
         window.push_back(error_packet);
         //struct packet error_ack;
         /*while(recvfrom(sockfd, &error_ack, sizeof(error_ack), 0, (struct sockaddr*)&cli_addr, &addr_len) < 0) {
@@ -178,7 +178,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             
             if((data_packet.len = read(f, data_packet.data, PAYLOAD_SIZE)) > 0){
                 //printf("- Sending DATA.\n");
-                send_packet(sockfd, cli_addr, data_packet, false);
+                send_packet(sockfd, cli_addr, data_packet, false, true);
                 window.push_back(data_packet);
                 seq_num += data_packet.len;
                 if(seq_num > MAX_SEQ_NUM){
@@ -209,7 +209,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         -4
     };
     //printf("- Sending FIN.\n");
-    send_packet(sockfd, cli_addr, fin_packet, false);
+    send_packet(sockfd, cli_addr, fin_packet, false, true);
     window.push_back(fin_packet);
 
     seq_num += fin_packet.len; //@
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
             printf("----- Finish request. -----\n\n");
         }
         else 
-        	printf("- Warning: Unrecognized packet.\n");
+        	printf("----- Warning: Unrecognized packet. ----\n");
     }
     close(sockfd); //@
 }
