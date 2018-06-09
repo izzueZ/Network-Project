@@ -12,7 +12,7 @@ void check_time(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window){
     }
 }
 
-void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window, bool done){
+void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window){
     fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, NULL) | O_NONBLOCK);
     
     struct packet client_ack;
@@ -64,7 +64,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
     window.push_back(syn_ack);
 
     while(!window.empty()) {
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
     seq_num += syn_ack.len;
@@ -85,7 +85,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         window.push_back(error_packet);
 
         while(!window.empty()) {
-            process_ack(sockfd, cli_addr, window, false);
+            process_ack(sockfd, cli_addr, window);
             check_time(sockfd, cli_addr, window);
         }
         seq_num += error_packet.len;
@@ -113,7 +113,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             }
         }
         
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
     
@@ -130,7 +130,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
 
     seq_num += fin_packet.len; //@
     while(!window.empty()) {
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
 }

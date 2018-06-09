@@ -16,12 +16,11 @@ void check_time(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window){
     }
 }
 
-void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window, bool done){
+void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window){
     fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, NULL) | O_NONBLOCK);
     
     struct packet client_ack;
     while(recvfrom(sockfd, &client_ack, sizeof(client_ack), 0, (struct sockaddr *) &cli_addr, &addr_len) > 0) {
-        //printf("Receiving packet %d\n\n", client_ack.ack);
         if(client_ack.type != type_ACK && client_ack.type != (type_ACK + type_SYN) && client_ack.type != (type_ACK + type_ERR) && client_ack.type != (type_ACK + type_FIN)){
             printf("----- Received packet, but it's not expected one. Ignore it. -----\n");
             continue;
@@ -31,7 +30,7 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
             switch (mode) {
                 case SS: 
                 case CA:
-                    printf("----- Duplicate ACK. -----\n");
+                    //printf("----- Duplicate ACK. -----\n");
                     if(++duplicate_num == 3) {
                         ssthresh = CWND/2;
                         CWND = min(ssthresh + 3*MAX_PACKET_SIZE, MAX_SEQ_NUM/2);
@@ -61,16 +60,16 @@ void process_ack(int sockfd, struct sockaddr_in& cli_addr, list<packet>& window,
         }
         switch(mode) {
             case SS:
-                printf("----- Mode SS. -----\n");
+                //printf("----- Mode SS. -----\n");
                 CWND = min(CWND + MAX_PACKET_SIZE, MAX_SEQ_NUM/2);
                 duplicate_num = 0;
                 if(CWND >= ssthresh) {
-                    printf("----- Switch from SS to CA. -----\n");
+                    //printf("----- Switch from SS to CA. -----\n");
                     mode = CA;
                 }
                 break;
             case CA:
-                printf("----- Mode CA. -----\n");
+                //printf("----- Mode CA. -----\n");
                 CWND = min(CWND + (MAX_PACKET_SIZE/CWND) * MAX_PACKET_SIZE, MAX_SEQ_NUM/2);
                 duplicate_num = 0;
                 break;
@@ -104,7 +103,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
     window.push_back(syn_ack);
 
     while(!window.empty()) {
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
     seq_num += syn_ack.len;
@@ -125,7 +124,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
         window.push_back(error_packet);
 
         while(!window.empty()) {
-            process_ack(sockfd, cli_addr, window, false);
+            process_ack(sockfd, cli_addr, window);
             check_time(sockfd, cli_addr, window);
         }
         seq_num += error_packet.len;
@@ -153,7 +152,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
             }
         }
         
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
     
@@ -170,7 +169,7 @@ void process_request(int sockfd, struct sockaddr_in& cli_addr, const struct pack
 
     seq_num += fin_packet.len; //@
     while(!window.empty()) {
-        process_ack(sockfd, cli_addr, window, false);
+        process_ack(sockfd, cli_addr, window);
         check_time(sockfd, cli_addr, window);
     }
 }

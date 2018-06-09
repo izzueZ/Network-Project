@@ -83,18 +83,5 @@ void send_packet(int sockfd, struct sockaddr_in& addr, const struct packet& pack
 		printf(" FIN");
 	printf("\n\n");
 
-	/*if((packet.type & type_DATA) == type_DATA)
-		printf("DATA ");
-	if((packet.type & type_SYN) == type_SYN)
-		printf("SYN ");
-	if((packet.type & type_ACK) == type_ACK)
-		printf("ACK ");
-	if((packet.type & type_REQ) == type_REQ)
-		printf("REQ ");
-	if((packet.type & type_FIN) == type_FIN)
-		printf("FIN ");
-	printf("   seq = %d, ack = %d, len = %d.\n\n", packet.seq, packet.ack, packet.len);
-	*/
-	//cout << packet.len << endl;
 	sendto(sockfd, &packet, sizeof(packet) , 0, (struct sockaddr*) &addr, addr_len);
 }

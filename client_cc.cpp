@@ -90,10 +90,6 @@ int main(int argc, char *argv[])
                     ack_num = (response.seq + response.len) % MAX_SEQ_NUM;
                     acknowlege(serv_addr, type_SYN, ack_num, false);
                     syn_acked = true;
-                    /*struct timeval tv = {0, 0};
-                    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
-                        fprintf(stderr, "ERROR: setsockopt() failed.\n");*/
-                    //seq_num++;
                 }
                 else 
                     acknowlege(serv_addr, type_SYN, ack_num, true);
